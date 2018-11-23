@@ -1,12 +1,13 @@
-// gcc -o mpu6050 mpu6050.c -lwringPi -lm
+// gcc -o mpu6050 mpu6050.c -lwiringPi -lm
 
 #include <wiringPiI2C.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <wiringPi.h>
 
+//I2C는 clock, address를 활용하여 Half Duplex comunication
 // SDA로 아래의 주소들이 들어온다.
-// SCL로 동기화를 한다.
+// SCL 동기화를 한다.
 
 #define Device_Address 0x68 //check MPU6050's address from i2cdetect -y -r 1
 
