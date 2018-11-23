@@ -10,11 +10,11 @@ int touch(void){
 	pinMode(PIR,INPUT);
 	
 	if(digitalRead(PIR) == 0){
-		printf("not detection\n");
+//		printf("not detection\n");
 		delay(1000);
 		return digitalRead(PIR);
 	}else{
-		printf("detection\n");
+//		printf("detection\n");
 		delay(1000);
 		return digitalRead(PIR);
 	}
