@@ -1,20 +1,22 @@
 #include <stdio.h>
 #include <wiringPi.h>
 
-#define TOUCH 1 // GPIO 24
+#define PIR 4
 
-int main(void)
-{
-	wiringPiSetup();
-	pinMode(TOUCH, INPUT);
+int touch(void){
+	if(wiringPiSetup() == -1)
+		return -1;
 
-	while(1){
-		if(digitalRead(TOUCH) == 1)
-			printf("TOUCHED\n");
-		else
-			printf("NOT\n");
+	pinMode(PIR,INPUT);
+	
+	if(digitalRead(PIR) == 0){
+		printf("not detection\n");
 		delay(1000);
+		return digitalRead(PIR);
+	}else{
+		printf("detection\n");
+		delay(1000);
+		return digitalRead(PIR);
 	}
-
-	return 0;
 }
+
