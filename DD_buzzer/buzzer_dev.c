@@ -1,7 +1,7 @@
 /*********************
  * make
  * sudo insmod buzzer_dev.ko
- * sudo mknod -m 666 /dev/buzzer_dev c 240 0
+ * sudo mknod -m 666 /dev/buzzer_dev c 241 0
  *
  *
  *//////////////////////
@@ -14,7 +14,7 @@
 
 #define GPIO1		18			
 #define DEV_NAME	"buzzer_dev"
-#define DEV_NUM 	240
+#define DEV_NUM 	241
 
 MODULE_LICENSE("GPL");
 
@@ -42,11 +42,11 @@ ssize_t buzzer_write(struct file *minode,const char *buffer,size_t length,loff_t
 	//int freq=atoi(c);
 	//int halfPeriod=
 	// write 호출시 삐이~~ 소리나는거.. ㅋㅋ
-	for(i=0;i<10000;i++){
+	for(i=0;i<1000;i++){
 	gpio_set_value(GPIO1,1);
-	udelay(50);
+	udelay(230);
 	gpio_set_value(GPIO1,0);
-	udelay(50);
+	udelay(230);
 	}
 	return length;
 }
