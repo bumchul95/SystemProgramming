@@ -1,0 +1,420 @@
+#include <linux/init.h> 
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/errno.h>
+#include <asm/io.h>
+#include <asm/uaccess.h>
+#include <linux/moduleparam.h>
+#include<linux/slab.h>
+
+
+#define CM_FCLKEN1_CORE_ADDR 0x48004a00
+#define CM_ICLKEN1_CORE_ADDR	0x48004a10
+
+/* MUX register */
+#define GPT11_MUX_OFFSET	(0x480021DC - CONTROL_PADCONF_START)
+#define PWM_ENABLE_MUX		0x0001
+
+/* Control register */
+#define CONTROL_PADCONF_START  0x48002030
+#define CONTROL_PADCONF_SIZE   0x0230
+#define GPT11_MUX_OFFSET	(0x480021DC - CONTROL_PADCONF_START)
+#define PWM_ENABLE_MUX		0x0001
+
+/* Clock register */
+#define CLOCK_CONTROL_REG_CM_START	0x48004A00
+#define CLOCK_CONTROL_REG_CM_SIZE	256
+#define CM_CLKSEL_CORE_OFFSET		0x40
+
+/* GPT11 register */
+#define GPT11_CTL_BASE		0x48088000
+#define GPT_REGS_PAGE_SIZE      4096
+
+
+/* GPT register offsets */
+#define GPT_TIOCP_CFG 0x010
+#define GPT_TISTAT    0x014
+#define GPT_TISR      0x018
+#define GPT_TIER      0x01C
+#define GPT_TWER      0x020
+#define GPT_TCLR      0x024
+#define GPT_TCRR      0x028
+#define GPT_TLDR      0x02C
+#define GPT_TTGR      0x030
+#define GPT_TWPS      0x034
+#define GPT_TMAR      0x038
+#define GPT_TCAR1     0x03C
+#define GPT_TSICR     0x040
+#define GPT_TCAR2     0x044
+#define GPT_TPIR      0x048
+#define GPT_TNIR      0x04C
+#define GPT_TCVR      0x050
+#define GPT_TOCR      0x054
+#define GPT_TOWR      0x058   
+
+/* TCLR bits for PWM */
+#define GPT_TCLR_ST     	(1 << 0)	/* stop/start */
+#define GPT_TCLR_AR     	(1 << 1)	/* one shot/auto-reload */
+#define GPT_TCLR_PTV_MASK    	(7 << 2)	/* prescaler value 2^(PTV + 1) */
+#define GPT_TCLR_PRE    	(1 << 5)	/* disable/enable prescaler */
+#define GPT_TCLR_CE     	(1 << 6)	/* disable/enable compare */
+#define GPT_TCLR_SCPWM  	(1 << 7)	/* PWM value when off */
+#define GPT_TCLR_TCM_MASK    	(3 << 8)	/* transition capture mode */
+#define GPT_TCLR_TRG_MASK 	(3 << 10)	/* trigger output mode */
+#define GPT_TCLR_TRG_OVFL	(1 << 10)	/* trigger on overflow */
+#define GPT_TCLR_TRG_OVFL_MATCH	(2 << 10)	/* trigger on overflow and match */	
+#define GPT_TCLR_PT     	(1 << 12)	/* pulse/toggle modulation */
+#define GPT_TCLR_CAPT_MODE      (1 << 13)	/* capture mode config */
+#define GPT_TCLR_GPO_CFG        (1 << 14)	/* pwm or capture mode */
+
+#define DEFAULT_TLDR	0xFFFFFF80
+#define DEFAULT_NUM_FREQUENCY	(0xFFFFFFFE - DEFAULT_TLDR)
+
+/* default 50% duty cycle */
+#define DEFAULT_DUTY_CYCLE	50
+#define DEFAULT_TMAR	(DEFAULT_TLDR + (0xFFFFFFFF - DEFAULT_TLDR - 1) * DEFAULT_DUTY_CYCLE / 100)
+
+/* default TCLR is off state */
+#define DEFAULT_TCLR (GPT_TCLR_PT | GPT_TCLR_TRG_OVFL_MATCH | GPT_TCLR_CE | GPT_TCLR_AR) 
+#define DEFAULT_PWM_FREQUENCY 256
+
+#define GPT_REGS_PAGE_SIZE      4096
+#define PWM11_CTL_BASE		0x48088000
+
+#define CLK_32K_FREQ	32768
+#define CLK_SYS_FREQ	13000000
+
+
+
+struct pwm_dev_t {
+	dev_t devt;
+	struct cdev cdev;
+	struct device *device;
+	char user_buff[128];
+	u32 num_settings;
+	u32 duty_cycle;
+
+	u32 phys_base;
+	void __iomem *virt_base;
+
+	u32 tldr;
+	u32 tmar;
+	u32 tclr;
+
+} pwm_dev;
+
+
+
+static int pwm_set_duty_cycle(struct pwm_dev_t *pd, unsigned int duty_cycle) 
+{
+	printk("pwm_set_duty_cycle\n");
+
+	void __iomem *base, *gpt11_base;
+	u32 val, mask;
+	u32 tldr, tmar, tclr;
+
+	u32 new_tmar;
+
+
+	tclr = DEFAULT_TCLR;
+	tmar = DEFAULT_TMAR;
+	tldr = DEFAULT_TLDR;
+
+	duty_cycle = 100 - duty_cycle;
+
+	pwm_dev.duty_cycle = duty_cycle;
+
+
+
+	gpt11_base = ioremap(GPT11_CTL_BASE, GPT_REGS_PAGE_SIZE);
+	if(!gpt11_base)
+	{
+		printk(KERN_ERR "ioremap error - GPT11_CTL_BASE.\n");
+		return -1;
+	}
+
+
+
+
+	printk(KERN_INFO "8 - set duty cycle.\n");
+	//8 - set duty cycle
+ 	new_tmar = (duty_cycle * pwm_dev.num_settings) / 100;
+	if (new_tmar < 1) 
+		new_tmar = 1;
+	else if (new_tmar > pwm_dev.num_settings)
+		new_tmar = pwm_dev.num_settings;		
+	tmar = tldr + new_tmar;
+
+
+	iowrite32(tmar, gpt11_base + GPT_TMAR);
+
+//	iowrite32(tmar, gpt11_base + GPT_TLDR);
+	iowrite32(tmar, gpt11_base + GPT_TCRR);
+
+	printk(KERN_INFO "9 - pwm on.\n");
+	//9 - pwm on
+	tclr = ioread32(gpt11_base + GPT_TCLR);
+	tclr |= GPT_TCLR_ST;
+	iowrite32(tclr, gpt11_base + GPT_TCLR); 
+	
+	iounmap(gpt11_base);
+}
+static ssize_t pwm_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+	int ret = 0;
+	printk("pwm_read\n");
+
+	count = snprintf(pwm_dev.user_buff, sizeof(pwm_dev.user_buff),	"Frequency %d Hz, Duty Cycle %d%%\n",
+			pwm_dev.num_settings, pwm_dev.duty_cycle);
+
+	printk("copy_to_user\n");
+	if (copy_to_user(buf, pwm_dev.user_buff, count))
+	{
+		printk(KERN_ERR "copy_to_user failed\n");
+		return -1;
+	}
+
+	return 0;	
+}
+
+static ssize_t pwm_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+{
+	size_t len;
+	unsigned int duty_cycle;
+	printk("pwm_write\n");
+
+	memset(pwm_dev.user_buff, 0, sizeof(pwm_dev.user_buff));
+
+	len = count > 8 ? 8 : count;
+	if (copy_from_user(pwm_dev.user_buff, buf, len)) 
+	{
+		printk(KERN_ERR "copy_from_user failed\n");
+		return -1;
+	}
+	duty_cycle = simple_strtoul(pwm_dev.user_buff, NULL, 0);
+
+	pwm_set_duty_cycle(&pwm_dev, duty_cycle);
+	return count;
+}
+
+
+static int pwm_open(struct inode *inode, struct file *filp)
+{
+	printk("pwm_open\n");
+
+	return 0;	
+}
+
+static int pwm_release(struct inode *inode, struct file *filp)
+{
+	printk("pwm_release\n");
+
+	return 0;	
+}
+static struct file_operations pwm_fops = {
+	.owner = THIS_MODULE,
+	.read = pwm_read,
+	.write = pwm_write,
+	.open = pwm_open,
+	.release = pwm_release,
+};
+
+
+static struct class *pwm_class;
+
+static int __init pwm_create_node(void)
+{
+	printk("pwm_create_node\n");
+	if (!pwm_class) 
+	{
+		pwm_class = class_create(THIS_MODULE, "pwm");
+		if (!pwm_class) 
+		{
+			printk(KERN_ERR "pwm class_create failed!\n");
+			return -1;
+		}
+	}
+	
+	pwm_dev.device = device_create(pwm_class, NULL, pwm_dev.devt, NULL, "brightness");					
+	if (!pwm_dev.device) 
+	{
+		printk(KERN_ERR "pwm device_create failed!\n");				
+		return -1;
+	}
+
+	return 0;
+}
+
+
+static int __init pwm_destroy_node(void)
+{
+	printk("pwm_destroy_node\n");
+	if (pwm_dev.device)
+		device_destroy(pwm_class, pwm_dev.devt);	
+	class_destroy(pwm_class);
+
+	return 0;
+}
+
+
+static int __init pwm_dev_init(void)
+{
+	int ret;
+
+	cdev_init(&pwm_dev.cdev, &pwm_fops);
+	pwm_dev.cdev.owner = THIS_MODULE;
+
+	ret = alloc_chrdev_region(&pwm_dev.devt, 0, 1, "pwm");
+	if (ret < 0) {
+		printk(KERN_ERR "alloc_chrdev_region fail: %d\n", ret);
+		return -1;
+	}
+	
+	ret = cdev_add(&pwm_dev.cdev, pwm_dev.devt, 1);
+	if (ret) {
+		printk(KERN_ERR "cdev_add fail: %d\n", ret);
+		unregister_chrdev_region(pwm_dev.devt, 1);
+		return -1;
+	}
+
+	pwm_create_node();
+
+	return 0;
+}
+
+
+static void pwm_dev_cleanup(void)
+{
+	pwm_destroy_node();
+
+	cdev_del(&pwm_dev.cdev);
+	unregister_chrdev_region(pwm_dev.devt, 1);
+}
+
+static int __init pwm_init(void)
+{
+	void __iomem *base, *gpt11_base;
+	u32 val, mask;
+	u32 tldr, tmar, tclr;
+
+	u32 new_tmar;
+
+
+
+	printk("\n\n----------------------------INIT-----------------------------------\n");
+	printk("pwm_init.\n");
+
+	if(pwm_dev_init() != 0)
+	{
+		printk(KERN_ERR "init pwm device failed.\n");
+		return -1;
+	}
+
+
+
+	tclr = DEFAULT_TCLR;
+	tmar = DEFAULT_TMAR;
+	tldr = DEFAULT_TLDR;
+
+	printk(KERN_INFO "1 - set pad control.\n");
+	//1 - set pad control
+	base = ioremap(CONTROL_PADCONF_START, CONTROL_PADCONF_SIZE);
+	if (!base) 
+	{
+		printk(KERN_ERR "ioremap error - CONTROL_PADCONF_START.\n");
+		return -1;
+	}
+	iowrite16(PWM_ENABLE_MUX, base + GPT11_MUX_OFFSET);
+	iounmap(base);
+
+	printk(KERN_INFO "2 - set fclk.\n");
+	//2 - set fclk
+	base =  ioremap(CM_FCLKEN1_CORE_ADDR, 32);
+	if (!base)
+	{
+		printk("ioremap error - CM_FCLKEN1_CORE_ADDR.\n");
+		return -1;
+	}
+	val = ioread32(base);
+	iowrite32(val | (0x01 << 12), base);
+	iounmap(base);
+	
+	printk(KERN_INFO "3 - set iclk.\n");
+	//3 - set iclk
+	base =  ioremap(CM_ICLKEN1_CORE_ADDR, 32);
+	if (!base)
+	{	
+		printk("ioremap error - CM_ICLKEN1_CORE_ADDR.\n");
+		return -1;
+	}
+	val = ioread32(base);
+	iowrite32(val | (0x01 << 12), base);
+	iounmap(base);
+
+	printk(KERN_INFO "4 - use 32k clk.\n");
+	//4 - use 32k clk
+	mask = ~(0x01 << 7);
+	base = ioremap(CLOCK_CONTROL_REG_CM_START, CLOCK_CONTROL_REG_CM_SIZE);
+	if (!base) {
+		printk(KERN_ERR "ioremap error - CLOCK_CONTROL_REG_CM_START.\n");
+		return -1;
+	}
+	val = ioread32(base + CM_CLKSEL_CORE_OFFSET);
+	val &= mask;
+	iowrite32(val, base + CM_CLKSEL_CORE_OFFSET);
+	iounmap(base);
+
+	printk(KERN_INFO "5 - gptimer 11.\n");
+	//5 - gptimer 11
+	gpt11_base = ioremap(GPT11_CTL_BASE, GPT_REGS_PAGE_SIZE);
+	if(!gpt11_base)
+	{
+		printk(KERN_ERR "ioremap error - GPT11_CTL_BASE.\n");
+		return -1;
+	}
+
+	printk(KERN_INFO "6 - pwm off.\n");
+	//6 - pwm off
+	tclr &= ~GPT_TCLR_ST;
+	iowrite32(tclr, gpt11_base + GPT_TCLR);
+
+	iounmap(gpt11_base);
+
+
+	printk(KERN_INFO "7 - set frequency.\n");
+	//7 - set frequency
+	pwm_dev.num_settings = 0xFFFFFFFE - tldr;
+	iowrite32(tldr, gpt11_base + GPT_TLDR);
+//	iowrite32(tldr, gpt11_base + GPT_TCRR);
+
+
+
+
+
+
+
+
+
+
+	pwm_set_duty_cycle(&pwm_dev, 20);
+
+	return 0;
+}
+
+static void __exit pwm_exit(void)
+{
+	printk("pwm_exit.\n");
+	pwm_dev_cleanup();
+
+	printk("----------------------------EXIT-----------------------------------\n");
+
+}
+
+module_init(pwm_init);
+module_exit(pwm_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Kevin");
+MODULE_DESCRIPTION("PWM module for am3517"); 
