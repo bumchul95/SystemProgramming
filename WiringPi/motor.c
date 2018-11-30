@@ -8,11 +8,10 @@ int motor(){
 		return -1;
 	softPwmCreate(PIN, 0, 200);
 	
-	softPwmWrite(PIN, 20);
-	delay(600);
-	softPwmWrite(PIN, 10);
-	delay(600);
-	return 0;
+	softPwmWrite(PIN, 5);
+	delay(50);
+	
 
+	return 0;
 
 }
