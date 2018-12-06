@@ -49,7 +49,7 @@ ssize_t moter_write(struct file *pfile, const char *buffer, size_t length, loff_
 	
 	mdelay(900);
 	*/
-	for(i=0;i<500;i++){ // 15
+	for(i=0;i<300;i++){ // 15
 	gpio_set_value(MOTER, 1);
 	mdelay(0.1);
 	gpio_set_value(MOTER, 0);
