@@ -1,0 +1,1 @@
+cmd_/home/pi/System_project/final/device_touch/touch_dev.ko := ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/pi/System_project/final/device_touch/touch_dev.ko /home/pi/System_project/final/device_touch/touch_dev.o /home/pi/System_project/final/device_touch/touch_dev.mod.o ;  true
