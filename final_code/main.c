@@ -2,58 +2,109 @@
 #include <wiringPi.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "dht11temp.h"
 #include "led.h"
 #include "gravity.h"
 
-#define TOUCH_DEV_PATH "/dev/touch_dev"
+#define BED_TOUCH_DEV_PATH "/dev/bed_touch_dev"
+#define PIL_TOUCH_DEV_PATH "/dev/pil_touch_dev"
 #define BUZZER_DEV_PATH "/dev/buzzer_dev"
+
+pthread_t thread;
+
+int sleep_flag = 0;
+
+void *gyro_count(void *unuse){
+
+	float gyro_list[5] = { 0 };
+
+	for(int i = 0; i < 5; i++){
+		sleep(1);
+		
+		gyro_list[i] = gyro();
+		printf("gyro_list[i] : %.3f\n", gyro_list[i]);
+
+		if(i != 0){
+			float gyro_dist = gyro_list[i] - gyro_list[i-1];
+
+			if(gyro_dist >= -0.2 && gyro_dist <= 0.2)
+				continue;
+			else{
+				sleep_flag = 0;
+
+				pthread_exit((void *)sleep_flag);
+			}
+		}
+	}
+
+	sleep_flag = 1;
+	pthread_exit((void *)sleep_flag);
+}
 
 int main(void){
 
-	int touch_state;
+	int bedtouch_state;
+	int piltouch_state;
 	float temp_value;
 	float gyro_value;
 	
-        int touch_fd = open(TOUCH_DEV_PATH, O_RDWR);
-	int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
+        int bedtouch_fd = open(BED_TOUCH_DEV_PATH, O_RDWR);
+	int piltouch_fd = open(PIL_TOUCH_DEV_PATH, O_RDWR);
+	//int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
+	
+	int gyro_thr_id;
 
-	if(touch_fd == -1 || buzzer_fd == -1) // error exist
+	if(bedtouch_fd == -1 || piltouch_fd == -1){	// error exist
 		return -1;
+	}
 
 	while(1) {
-		read(touch_fd, &touch_state, sizeof(touch_state));
-		printf("touch_state is %d.\n", touch_state);
+
+		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
+		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
+		printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
 
 		// if bed is touched
-		if(touch_state){
-	
-		  //temperature estimate
-		  temp_value = read_dht11_dat();
-		  gyro_value = gyro();
-                  write(buzzer_fd, "on", 2);
+		if(bedtouch_state && piltouch_state){
 
-		  printf("gyro_value : %.2f\n", gyro_value);
-					
-		  if(temp_value){ // if temp exists
-			if(temp_value > 20.0){ // high
-				printf("temp is %.2f\n",temp_value);
-				LED1_ON();
-			}
-			else{  //low
-				printf("temp is %.2f\n",temp_value);
-				LED2_ON();
-		        }
+		  if(!sleep_flag){
+		    printf("gyro_thread start!\n");
+		    gyro_thr_id = pthread_create(&thread, NULL, gyro_count, 0);
+		  }
+
+                  //write(buzzer_fd, "on", 2);
+			
+  		  if(sleep_flag){
+
+			printf("sleep mode start !\n");
+	 		//temperature estimate		  
+			temp_value = read_dht11_dat();
+		  	
+			if(temp_value){ // if temp exists
+				if(temp_value > 20.0){ // high
+					printf("temp is %.2f\n",temp_value);
+					LED1_ON();
+				}
+				else{  //low
+					printf("temp is %.2f\n",temp_value);
+					LED2_ON();
+		        	}
+		  	}
+		  }
+		  else{
+                      pthread_join(thread, (void **)&sleep_flag);
 		  }
 		}
-		// if bed is not touched
-		else {
-			LED2_ON();
+		// if not sleep.
+		else{
+			sleep_flag = 0;
 		}
 	}
 
 	return 0;
 }
+
 
 

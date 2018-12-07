@@ -1,6 +1,6 @@
 KERNELDIR = /lib/modules/$(shell uname -r)/build 
 
-obj-m := touch_dev.o
+obj-m := pil_touch_dev.o
 
 PWD := $(shell pwd)
 
@@ -11,11 +11,11 @@ clean :
 	make -C $(KERNELDIR) M=$(PWD) clean
 
 upload :
-	sudo insmod touch_dev.ko
-	sudo mknod -m 666 /dev/touch_dev c 240 0
+	sudo insmod pil_touch_dev.ko
+	sudo mknod -m 666 /dev/pil_touch_dev c 242 0
 
 remove :
-	sudo rmmod touch_dev
-	sudo rm -rf /dev/touch_dev 
+	sudo rmmod pil_touch_dev
+	sudo rm -rf /dev/pil_touch_dev 
 
 

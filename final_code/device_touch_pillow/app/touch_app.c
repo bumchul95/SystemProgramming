@@ -10,7 +10,7 @@ pthread_t thread;
 int thread_start_flag = 1;
 int thr_id;
 
-#define NODE_NAME "/dev/touch_dev"
+#define NODE_NAME "/dev/pil_touch_dev"
 
 void *pir_thread(void * unuse) {
 	int fd;
