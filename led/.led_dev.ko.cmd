@@ -1,0 +1,1 @@
+cmd_/home/pi/Documents/systemprogramming/led/led_dev.ko := ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/pi/Documents/systemprogramming/led/led_dev.ko /home/pi/Documents/systemprogramming/led/led_dev.o /home/pi/Documents/systemprogramming/led/led_dev.mod.o ;  true
