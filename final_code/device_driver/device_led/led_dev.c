@@ -105,7 +105,12 @@ ssize_t led_write(struct file *pfile, const char *buffer, size_t length, loff_t 
 		mdelay(20);
 		}
 	}
-	
+	else if(length == 4){
+		for(i=0;i<50;i++){
+		gpio_set_value(LED, 1);	
+		mdelay(20);
+		}
+	}
 	return length;
 }
 

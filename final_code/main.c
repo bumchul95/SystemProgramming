@@ -37,15 +37,14 @@ int main(void){
 	}
 
 	int btr_thr_id = pthread_create(&btn_thread, NULL, button_function, 0);
-
+	write(led_fd, "lion", 4);
 	while(!wakeup_flag) {
-
+		
 		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
 		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
 		
 		// if bed is touched
 		if(bedtouch_state && piltouch_state){
-		 
 		  if(!sleep_flag){
 		    printf("gyro_thread start! \n");
 		    gyro_thr_id = pthread_create(&thread, NULL, gyro_count, 0);
@@ -55,7 +54,7 @@ int main(void){
 			printf("sleep mode start! \n");
 
 			if(moodlight_flag){
-				write(led_fd, "on", 2);
+				write(led_fd, "off", 3);
 				moodlight_flag = 0;
 			}
 
@@ -66,7 +65,7 @@ int main(void){
 			
 	 		//temperature estimate		  
 			temp_value = read_dht11_dat();
-		  	
+		        
 			if(temp_value){ // if temp exists
 				if(temp_value > 22.0){ // temperature is high
 					printf("temp is %.3f\n",temp_value);
@@ -108,7 +107,7 @@ int main(void){
 			if(!receive)
 				cnt++;
 
-			if(cnt == 3){
+			if(cnt == 5){
 				write(motor_fd, "on", 2);
 				sleep(5);
 				break;
@@ -118,7 +117,7 @@ int main(void){
 		}
 	}
 
-	write(led_fd, "off", 3);
+	write(led_fd, "on", 2);
 	close(motor_fd);
 	
 	return 0;
