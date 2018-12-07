@@ -37,35 +37,44 @@ int main(void){
 
 	memset(&server_addr,0,sizeof(server_addr));
 	server_addr.sin_family=AF_INET;
-	server_addr.sin_port=htons(4444);
-	server_addr.sin_addr.s_addr=inet_addr("192.168.18.128");
-	
+	server_addr.sin_port=htons(4004);
+	server_addr.sin_addr.s_addr=inet_addr("192.168.0.238");
+		
 	if( -1 == bind(sock,(struct sockaddr*)&server_addr,sizeof(server_addr)))
 	{
 		perror("bind is error");
 		exit(1);
 	}
 
+
 	sleep(2);
 	int j=0;
 	while(1){
-	  printf("test..i\n");
-	  rcv_data=recvfrom(sock,buff_rcv,BUFF_SIZE,0,(struct sockaddr*)&client_addr,sizeof(client_addr));
+	  printf("wait...\n");
+	  digitalWrite(MOTOR1A,0);
+	  digitalWrite(MOTOR1B,0);		  
+	  client_addr_size=sizeof(client_addr);
+	  rcv_data=recvfrom(sock,buff_rcv,BUFF_SIZE,0,(struct sockaddr*)&client_addr,&client_addr_size);
 	  printf("receive is %s ,%d \n",buff_rcv,rcv_data);
-	  if(strcmp(buff_rcv,"on")==0){
-
+	  if(strcmp(buff_rcv,"up")==0){
 	  	for(j=0;j<10;j++){
 		  digitalWrite(MOTOR1A,1);
-		  digitalWrite(MOTOR1B,0);
+		  digitalWrite(MOTOR1B,0);		  
 
-		  delay(1000);
-
-		  digitalWrite(MOTOR1A,0);
-		  digitalWrite(MOTOR1B,0);
- 		  
-		  delay(1000);	
+		  delay(500);	
 		}
 	  }
+	  if(strcmp(buff_rcv,"down")==0){
+	  	for(j=0;j<10;j++){
+		  digitalWrite(MOTOR1A,0);
+		  digitalWrite(MOTOR1B,1);		  
+
+		  delay(500);	
+		}
+
+	  }
+
+
 	  //ret= sendto(sockfd,(const char*)hello,strlen(hello),0,(const struct sockaddr *)&servaddr,sizeof(servaddr));
 	 
 	  //printf("send msg with %d bytes \n",ret);
