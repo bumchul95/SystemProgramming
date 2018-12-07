@@ -33,3 +33,13 @@ void LED2_ON(){
 	digitalWrite(LED2_PIN, HIGH);
 }
 
+void LED_OFF() {
+	wiringPiSetup();
+
+	pinMode(LED1_PIN, OUTPUT);
+	pinMode(LED2_PIN, OUTPUT);
+
+	digitalWrite(LED1_PIN, LOW);
+	digitalWrite(LED2_PIN, LOW);
+}
+

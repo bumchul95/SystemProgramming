@@ -12,7 +12,7 @@ clean :
 
 upload :
 	sudo insmod sound_dev.ko
-	sudo mknod -m 666 /dev/sound_dev c 246 0
+	sudo mknod -m 666 /dev/sound_dev c 236 0
 
 remove :
 	sudo rmmod sound_dev

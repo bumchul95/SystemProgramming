@@ -12,7 +12,7 @@ clean :
 
 upload :
 	sudo insmod button_dev.ko
-	sudo mknod -m 666 /dev/button_dev c 245 0
+	sudo mknod -m 666 /dev/button_dev c 238 0
 
 remove :
 	sudo rmmod button_dev

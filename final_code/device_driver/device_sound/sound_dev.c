@@ -7,7 +7,7 @@
 
 #define SOUND 5 //gpio 21
 #define DEV_NAME "sound_dev"
-#define DEV_NUM 246
+#define DEV_NUM 236
 
 MODULE_LICENSE("GPL");
 

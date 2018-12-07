@@ -14,5 +14,6 @@ void LED1_ON();
 void LED2_ON();
 void INT_handler(int);
 void init();
+void LED_OFF();
 
 #endif

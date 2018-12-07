@@ -6,12 +6,15 @@
 #define BUZZER_DEV_PATH "/dev/buzzer_dev"
 #define SOUND_DEV_PATH "/dev/sound_dev"
 #define BUTTON_DEV_PATH "/dev/button_dev"
+#define MOTOR_DEV_PATH "/dev/motor_dev"
 
 pthread_t thread;
+pthread_t btn_thread;
 
 static int touch_flag = 0;
 static int sleep_flag = 0;
 static int wakeup_flag = 0;
 static int window_flag = 1;
+static int button_flag = 0;
 
 #endif

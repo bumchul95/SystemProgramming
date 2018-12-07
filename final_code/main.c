@@ -10,33 +10,44 @@
 #include "main.h"
 
 void *gyro_count(void *unuse);
+void *button_function(void *unuse);
 
 int main(void){
-
+	int receive, button_receive;
 	int bedtouch_state;
 	int piltouch_state;
 	float temp_value;
 	float gyro_value;
 	int gyro_thr_id;
+	int btn_thr_id;
 
 	int bedtouch_fd = open(BED_TOUCH_DEV_PATH, O_RDWR);
 	int piltouch_fd = open(PIL_TOUCH_DEV_PATH, O_RDWR);
 	int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
-	int button_fd = open(BUTTON_DEV_PATH, O_RDWR);
 	int sound_fd = open(SOUND_DEV_PATH, O_RDWR);
+	int motor_fd = open(MOTOR_DEV_PATH, O_RDWR);
 
-	if(bedtouch_fd == -1 || buzzer_fd == -1 || piltouch_fd == -1
-	   || button_fd == -1 || sound_fd == -1){	// error exist
+	if(bedtouch_fd == -1 || buzzer_fd == -1 || piltouch_fd == -1 
+	|| motor_fd == -1 || sound_fd == -1){	// error exist
+
+		if(bedtouch_fd == -1)
+			printf("1\n");
+		if(bedtouch_fd == -1)
+			printf("2\n");	
+		if(bedtouch_fd == -1)
+			printf("3\n");
 
 		printf("device not open!\n");
 		return -1;
 	}
 
-	while(1) {
+	int btr_thr_id = pthread_create(&btn_thread, NULL, button_function, 0);
+
+	while(!wakeup_flag) {
 
 		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
 		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
-		printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
+		//printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
 
 		// if bed is touched
 		if(bedtouch_state && piltouch_state){
@@ -60,7 +71,7 @@ int main(void){
 			temp_value = read_dht11_dat();
 		  	
 			if(temp_value){ // if temp exists
-				if(temp_value > 23.0){ // temperature is high
+				if(temp_value > 22.0){ // temperature is high
 					printf("temp is %.3f\n",temp_value);
 					LED1_ON();
 				}
@@ -76,14 +87,43 @@ int main(void){
 		}
 		// if not sleep.
 		else{
-			if(!window_flag){ //if window is down 
-				send_from_server("up");
-				window_flag = 1;
-			}
-
 			sleep_flag = 0;
 		}
 	}
+
+	if(wakeup_flag){ 
+		
+		LED_OFF();
+		send_from_server("up");
+		
+		int cnt = 0;
+		int button_fd = open(BUTTON_DEV_PATH, O_RDWR);
+
+		while(1){
+			write(buzzer_fd, "3", 2);
+			read(sound_fd, &receive, 4);
+                        read(button_fd, &button_receive, 4);
+
+			printf("sound : %d\n", receive);
+			printf("button : %d\n", button_receive);
+
+			if(button_receive)
+				break;
+
+			if(!receive)
+				cnt++;
+
+			if(cnt == 3){
+				write(motor_fd, "3", 2);
+				sleep(5);
+				break;
+			}	
+
+			sleep(1);
+		}
+	}
+
+	close(motor_fd);
 	
 	return 0;
 }
@@ -114,3 +154,19 @@ void *gyro_count(void *unuse){ //gyro thread function.
 	pthread_exit((void *)sleep_flag);
 }
 
+void *button_function(void *unuse){
+
+	int button_fd = open(BUTTON_DEV_PATH, O_RDWR);
+	int button_state = 0;
+
+	while(1){
+		read(button_fd, &button_state, sizeof(button_state));
+		
+		if(button_state)
+			break;	
+	}
+
+	wakeup_flag = 1;
+	close(button_fd);
+	pthread_exit((void*)&button_fd);
+}

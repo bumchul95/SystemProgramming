@@ -7,7 +7,7 @@
 
 #define BUTTON 16 //gpio 27
 #define DEV_NAME "button_dev"
-#define DEV_NUM 243
+#define DEV_NUM 238
 
 MODULE_LICENSE("GPL");
 
