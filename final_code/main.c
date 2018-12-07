@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "dht11temp.h"
 #include "led.h"
@@ -26,16 +27,10 @@ int main(void){
 	int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
 	int sound_fd = open(SOUND_DEV_PATH, O_RDWR);
 	int motor_fd = open(MOTOR_DEV_PATH, O_RDWR);
+	int led_fd = open(LED_DEV_PATH, O_RDWR);
 
 	if(bedtouch_fd == -1 || buzzer_fd == -1 || piltouch_fd == -1 
-	|| motor_fd == -1 || sound_fd == -1){	// error exist
-
-		if(bedtouch_fd == -1)
-			printf("1\n");
-		if(bedtouch_fd == -1)
-			printf("2\n");	
-		if(bedtouch_fd == -1)
-			printf("3\n");
+	|| motor_fd == -1 || sound_fd == -1 || led_fd == -1){	// error exist
 
 		printf("device not open!\n");
 		return -1;
@@ -47,21 +42,23 @@ int main(void){
 
 		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
 		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
-		//printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
-
+		
 		// if bed is touched
 		if(bedtouch_state && piltouch_state){
 		 
 		  if(!sleep_flag){
-		    printf("gyro_thread start!\n");
+		    printf("gyro_thread start! \n");
 		    gyro_thr_id = pthread_create(&thread, NULL, gyro_count, 0);
 		  }
 
-                  //write(buzzer_fd, "on", 2);
-			
   		  if(sleep_flag){
-			printf("sleep mode start !\n");
-			
+			printf("sleep mode start! \n");
+
+			if(moodlight_flag){
+				write(led_fd, "on", 2);
+				moodlight_flag = 0;
+			}
+
 			if(window_flag){
 			  send_from_server("down");
 			  window_flag--;
@@ -88,6 +85,7 @@ int main(void){
 		// if not sleep.
 		else{
 			sleep_flag = 0;
+			moodlight_flag = 1;
 		}
 	}
 
@@ -100,12 +98,9 @@ int main(void){
 		int button_fd = open(BUTTON_DEV_PATH, O_RDWR);
 
 		while(1){
-			write(buzzer_fd, "3", 2);
-			read(sound_fd, &receive, 4);
-                        read(button_fd, &button_receive, 4);
-
-			printf("sound : %d\n", receive);
-			printf("button : %d\n", button_receive);
+			write(buzzer_fd, "on", 2);
+			read(sound_fd, &receive, sizeof(int));
+                        read(button_fd, &button_receive, sizeof(int));
 
 			if(button_receive)
 				break;
@@ -114,7 +109,7 @@ int main(void){
 				cnt++;
 
 			if(cnt == 3){
-				write(motor_fd, "3", 2);
+				write(motor_fd, "on", 2);
 				sleep(5);
 				break;
 			}	
@@ -123,6 +118,7 @@ int main(void){
 		}
 	}
 
+	write(led_fd, "off", 3);
 	close(motor_fd);
 	
 	return 0;

@@ -7,10 +7,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/cdev.h>
-#define LED	18
-#define LED_B	4
+#define LED	19
+#define LED_B	13
 #define DEV_NAME "led_dev"
-#define DEV_NUM 240
+#define DEV_NUM 233
 
 MODULE_LICENSE("GPL");
 static char *msg = NULL;
@@ -42,7 +42,7 @@ ssize_t led_write(struct file *pfile, const char *buffer, size_t length, loff_t 
 	}
 	printk("length : %d\n", length);
 	
-	if(length == 1){
+	if(length == 3){
 		for(i=0;i<50;i++){
 		gpio_set_value(LED, 1);
 		mdelay(19.9);

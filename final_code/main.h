@@ -7,6 +7,7 @@
 #define SOUND_DEV_PATH "/dev/sound_dev"
 #define BUTTON_DEV_PATH "/dev/button_dev"
 #define MOTOR_DEV_PATH "/dev/motor_dev"
+#define LED_DEV_PATH "/dev/led_dev"
 
 pthread_t thread;
 pthread_t btn_thread;
@@ -16,5 +17,9 @@ static int sleep_flag = 0;
 static int wakeup_flag = 0;
 static int window_flag = 1;
 static int button_flag = 0;
+static int moodlight_flag = 1;
+
+char s1[10] = "off";
+char s2[10] = "on";
 
 #endif

@@ -1,1 +1,0 @@
-cmd_/home/pi/Documents/systemprogramming/sound/sound_dev.ko := ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/pi/Documents/systemprogramming/sound/sound_dev.ko /home/pi/Documents/systemprogramming/sound/sound_dev.o /home/pi/Documents/systemprogramming/sound/sound_dev.mod.o ;  true
