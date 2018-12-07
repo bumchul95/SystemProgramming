@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <wiringPi.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -7,6 +6,7 @@
 #include "dht11temp.h"
 #include "led.h"
 #include "gravity.h"
+#include "sender.h"
 
 #define BED_TOUCH_DEV_PATH "/dev/bed_touch_dev"
 #define PIL_TOUCH_DEV_PATH "/dev/pil_touch_dev"
@@ -14,7 +14,10 @@
 
 pthread_t thread;
 
+int touch_flag = 0;
 int sleep_flag = 0;
+int wakeup_flag = 0;
+int window_flag = 1;
 
 void *gyro_count(void *unuse){
 
@@ -33,7 +36,6 @@ void *gyro_count(void *unuse){
 				continue;
 			else{
 				sleep_flag = 0;
-
 				pthread_exit((void *)sleep_flag);
 			}
 		}
@@ -59,16 +61,15 @@ int main(void){
 	if(bedtouch_fd == -1 || piltouch_fd == -1){	// error exist
 		return -1;
 	}
-
+	
 	while(1) {
-
 		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
 		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
 		printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
 
 		// if bed is touched
 		if(bedtouch_state && piltouch_state){
-
+		 
 		  if(!sleep_flag){
 		    printf("gyro_thread start!\n");
 		    gyro_thr_id = pthread_create(&thread, NULL, gyro_count, 0);
@@ -77,17 +78,22 @@ int main(void){
                   //write(buzzer_fd, "on", 2);
 			
   		  if(sleep_flag){
-
 			printf("sleep mode start !\n");
+			
+			if(window_flag){
+			  send_from_server("down");
+			  window_flag--;
+			}
+			
 	 		//temperature estimate		  
 			temp_value = read_dht11_dat();
 		  	
 			if(temp_value){ // if temp exists
-				if(temp_value > 20.0){ // high
+				if(temp_value > 23.0){ // temperature is high
 					printf("temp is %.2f\n",temp_value);
 					LED1_ON();
 				}
-				else{  //low
+				else{  //temperature is low
 					printf("temp is %.2f\n",temp_value);
 					LED2_ON();
 		        	}
@@ -99,10 +105,15 @@ int main(void){
 		}
 		// if not sleep.
 		else{
+			if(!window_flag){ //if window is down 
+				send_from_server("up");
+				window_flag = 1;
+			}
+
 			sleep_flag = 0;
 		}
 	}
-
+	
 	return 0;
 }
 

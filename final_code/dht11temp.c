@@ -1,10 +1,5 @@
-#include <wiringPi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 
-#define MAXTIMINGS 85
-#define DHTPIN 7
+#include "dht11temp.h"
 
 float read_dht11_dat(){
 
@@ -47,7 +42,7 @@ float read_dht11_dat(){
 		}
 	}
 	
-	if((j >= 40)&&(dht11_dat[4] == ((dht11_dat[0]+dht11_dat[1]+dht11_dat[2]+dht11_dat[3]) & 0xFF))){
+	if((j >= 40)&&(dht11_dat[4] == ((dht11_dat[0] + dht11_dat[1] + dht11_dat[2] + dht11_dat[3]) & 0xFF))){
 		f = dht11_dat[2] * 9. / 5. + 32;
 		temp = dht11_dat[2] + dht11_dat[3]*0.1;
 	}else{
