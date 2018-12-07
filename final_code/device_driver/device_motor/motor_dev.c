@@ -13,9 +13,16 @@ MODULE_LICENSE("GPL");
 
 int motor_open(struct inode *pinode, struct file *pfile){
 	printk(KERN_ALERT "OPEN motor device\n");
-	
+	int i;
 	gpio_request(MOTOR, "MOTOR");
 	gpio_direction_output(MOTOR, 1);
+
+	for(i = 0; i < 30; i++){
+	  gpio_set_value(MOTOR, 1);
+	  mdelay(3);
+	  gpio_set_value(MOTOR, 0);
+	  mdelay(17);
+	}	
 	return 0;
 }
 
