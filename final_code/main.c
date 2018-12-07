@@ -7,43 +7,9 @@
 #include "led.h"
 #include "gravity.h"
 #include "sender.h"
+#include "main.h"
 
-#define BED_TOUCH_DEV_PATH "/dev/bed_touch_dev"
-#define PIL_TOUCH_DEV_PATH "/dev/pil_touch_dev"
-#define BUZZER_DEV_PATH "/dev/buzzer_dev"
-
-pthread_t thread;
-
-int touch_flag = 0;
-int sleep_flag = 0;
-int wakeup_flag = 0;
-int window_flag = 1;
-
-void *gyro_count(void *unuse){
-
-	float gyro_list[5] = { 0 };
-
-	for(int i = 0; i < 5; i++){
-		sleep(1);
-		
-		gyro_list[i] = gyro();
-		printf("gyro_list[i] : %.3f\n", gyro_list[i]);
-
-		if(i != 0){
-			float gyro_dist = gyro_list[i] - gyro_list[i-1];
-
-			if(gyro_dist >= -0.2 && gyro_dist <= 0.2)
-				continue;
-			else{
-				sleep_flag = 0;
-				pthread_exit((void *)sleep_flag);
-			}
-		}
-	}
-
-	sleep_flag = 1;
-	pthread_exit((void *)sleep_flag);
-}
+void *gyro_count(void *unuse);
 
 int main(void){
 
@@ -51,18 +17,23 @@ int main(void){
 	int piltouch_state;
 	float temp_value;
 	float gyro_value;
-	
-        int bedtouch_fd = open(BED_TOUCH_DEV_PATH, O_RDWR);
-	int piltouch_fd = open(PIL_TOUCH_DEV_PATH, O_RDWR);
-	//int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
-	
 	int gyro_thr_id;
 
-	if(bedtouch_fd == -1 || piltouch_fd == -1){	// error exist
+	int bedtouch_fd = open(BED_TOUCH_DEV_PATH, O_RDWR);
+	int piltouch_fd = open(PIL_TOUCH_DEV_PATH, O_RDWR);
+	int buzzer_fd = open(BUZZER_DEV_PATH, O_RDWR);
+	int button_fd = open(BUTTON_DEV_PATH, O_RDWR);
+	int sound_fd = open(SOUND_DEV_PATH, O_RDWR);
+
+	if(bedtouch_fd == -1 || buzzer_fd == -1 || piltouch_fd == -1
+	   || button_fd == -1 || sound_fd == -1){	// error exist
+
+		printf("device not open!\n");
 		return -1;
 	}
-	
+
 	while(1) {
+
 		read(bedtouch_fd, &bedtouch_state, sizeof(bedtouch_state));
 		read(piltouch_fd, &piltouch_state, sizeof(piltouch_state));
 		printf("bed/pil touch_state is %d %d.\n", bedtouch_state, piltouch_state);
@@ -90,11 +61,11 @@ int main(void){
 		  	
 			if(temp_value){ // if temp exists
 				if(temp_value > 23.0){ // temperature is high
-					printf("temp is %.2f\n",temp_value);
+					printf("temp is %.3f\n",temp_value);
 					LED1_ON();
 				}
 				else{  //temperature is low
-					printf("temp is %.2f\n",temp_value);
+					printf("temp is %.3f\n",temp_value);
 					LED2_ON();
 		        	}
 		  	}
@@ -117,5 +88,29 @@ int main(void){
 	return 0;
 }
 
+void *gyro_count(void *unuse){ //gyro thread function.
 
+	float gyro_list[5] = { 0 };
+
+	for(int i = 0; i < 5; i++){
+		sleep(1);
+		
+		gyro_list[i] = gyro();
+		printf("gyro_list[i] : %.3f\n", gyro_list[i]);
+
+		if(i != 0){
+			float gyro_dist = gyro_list[i] - gyro_list[i-1];
+
+			if(gyro_dist >= -0.2 && gyro_dist <= 0.2)
+				continue;
+			else{
+				sleep_flag = 0;
+				pthread_exit((void *)sleep_flag);
+			}
+		}
+	}
+
+	sleep_flag = 1;
+	pthread_exit((void *)sleep_flag);
+}
 
